@@ -58,11 +58,11 @@ This software package is a plugin module for Isomer.
     dependency_links=[],
     install_requires=[
         'isomer>=1.0',
-        'cv2>=2.4.9'
+        'numpy>=1.16.2'
     ],
     entry_points="""[isomer.schemata]
       [isomer.components]
-      matelight=isomer.matelight.matelight:Matelight
+      matelight=isomer.matelight:Matelight
       [isomer.management]
       [isomer.provisions]
     """,

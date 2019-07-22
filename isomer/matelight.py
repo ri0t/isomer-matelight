@@ -14,13 +14,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from isomer.debugger import cli_register_event
 
 __author__ = 'riot'
 
-import pygame
-import cv2 as cv
 import socket
-import os
 import numpy as np
 
 from circuits import Event, Timer, handler
@@ -52,20 +50,40 @@ class transmit_ml(Event):
         self.frame = frame
 
 
+class cli_test_matelight(Event):
+    pass
+
+
 class Matelight(ConfigurableComponent):
     """Matelight connector with some minimal extra facilities"""
 
     channel = "matelight"
 
-    def __init__(self, host="matelight", port=1337, *args):
-        super(Matelight, self).__init__(*args)
+    configprops = {
+        'host': {'type': 'string', 'default': 'matelight'},
+        'port': {'type': 'integer', 'default': 1337},
+        'gamma': {'type': 'number', 'default': 0.5},
+        'size': {
+            'type': 'object',
+            'properties': {
+                'width': {'type': 'integer', 'default': 40},
+                'height': {'type': 'integer', 'default': 16}
+            },
+            'default': {
+                'width': 40,
+                'height': 16
+            }
+        }
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(Matelight, self).__init__('MATELIGHT', *args, **kwargs)
         self.log("Initializing matelight output")
 
-        self.host = host
-        self.port = port
+        self.log('CONFIG:', self.config.__dict__, pretty=True)
 
-        self.size = (40, 16)
-        self.gamma = 0.5
+        self.size = (self.config.size['width'], self.config.size['height'])
+        self.gamma = self.config.gamma
 
         self.fading = None
 
@@ -74,11 +92,9 @@ class Matelight(ConfigurableComponent):
 
         self.last_frame = np.zeros(self.size, np.uint8)
 
-        path = os.path.abspath("./images/startscreen_matelight.png")
-        boot_image = cv.imread(path)
+        self.fireEvent(cli_register_event("test_matelight", cli_test_matelight))
 
-        self.boot_image = cv.cvtColor(boot_image, cv.COLOR_BGR2RGB)
-        self._transmit(self.boot_image)
+        self._transmit(self.last_frame)
 
         self.fade_timer = None
         self.init_timer = Timer(5, fade_out_ml()).register(self)
@@ -87,10 +103,20 @@ class Matelight(ConfigurableComponent):
     def started(self, *args):
         self.log("Starting matelight output on device %s:%i" % (self.host, self.port))
 
+    def cli_test_matelight(self, event):
+        self.log('Displaying test image')
+        import os, cv2 as cv
+
+        path = os.path.abspath("../testscreen.png")
+        test_image = cv.imread(path)
+        test_image = cv.cvtColor(test_image, cv.COLOR_BGR2RGB)
+        self._transmit(test_image)
+
     def fade_out_ml(self, event):
         if self.fading is None:
             self.fading = 20
-            self.fade_timer = Timer(1 / 60.0, fade_out_ml(), persist=True).register(self)
+            self.fade_timer = Timer(1 / 60.0, fade_out_ml(), persist=True).register(
+                self)
         elif self.fading > 0:
             new_frame = (self.last_frame * 0.9).astype(np.uint8)
             self._transmit(new_frame)
@@ -102,7 +128,8 @@ class Matelight(ConfigurableComponent):
 
     def _clear(self):
         self.log('Clearing')
-        img = np.zeros((40, 16, 3), np.uint8)
+        img = np.zeros((self.config.size['width'], self.config.size['height'], 3),
+                       np.uint8)
         self._transmit(img)
 
     def clear_ml(self, event):
@@ -127,7 +154,7 @@ class Matelight(ConfigurableComponent):
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.sendto(ml_data, (self.host, self.port))
+            sock.sendto(ml_data, (self.config.host, self.config.port))
         except Exception as e:
             self.log("Error during matelight transmission: ", e)
             self.output_broken = True
@@ -138,15 +165,3 @@ class Matelight(ConfigurableComponent):
             self.fade_timer = None
 
         self._transmit(event.frame)
-
-    @handler('keypress')
-    def keypress(self, event):
-        if event.ev.key == 223 and event.ev.mod == 1:
-            self._transmit(self.boot_image)
-            Timer(2, fade_out_ml()).register(self)
-        if event.ev.mod & pygame.KMOD_LCTRL and event.ev.mod & pygame.KMOD_LSHIFT:
-            if event.ev.key == pygame.K_MINUS:
-                self.gamma = max(0.1, self.gamma - 0.1)
-            elif event.ev.key == pygame.K_PLUS:
-                self.gamma = min(1, self.gamma + 0.1)
-            self.log(self.gamma)
