@@ -1,0 +1,14 @@
+<div class="container">
+    <div class="well">
+        <h1>Matelight Simulator</h1>
+        <button class="btn btn-default" ng-click="$ctrl.subscribe()">Connect</button>
+
+        <div ng-repeat="row in $ctrl.rows track by $index" class="row">
+            <div ng-repeat="col in row track by $index"
+                 class="cell"
+                 ng-style="$ctrl.getElementStyle(col)">
+                &nbsp;
+            </div>
+        </div>
+    </div>
+</div>

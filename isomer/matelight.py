@@ -14,7 +14,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from isomer.debugger import cli_register_event
 
 __author__ = 'riot'
 
@@ -24,7 +23,8 @@ import numpy as np
 from circuits import Event, Timer, handler
 
 from isomer.component import ConfigurableComponent
-from isomer.logger import verbose
+from isomer.logger import verbose, critical
+from isomer.debugger import cli_register_event
 
 
 class clear_ml(Event):
@@ -53,6 +53,9 @@ class transmit_ml(Event):
 class cli_test_matelight(Event):
     pass
 
+GAMMA = 0.9
+BRIGHTNESS = 0.9
+
 
 class Matelight(ConfigurableComponent):
     """Matelight connector with some minimal extra facilities"""
@@ -62,7 +65,7 @@ class Matelight(ConfigurableComponent):
     configprops = {
         'host': {'type': 'string', 'default': 'matelight'},
         'port': {'type': 'integer', 'default': 1337},
-        'gamma': {'type': 'number', 'default': 0.5},
+        'gamma': {'type': 'number', 'default': 1.1},
         'size': {
             'type': 'object',
             'properties': {
@@ -92,13 +95,13 @@ class Matelight(ConfigurableComponent):
 
         self.last_frame = np.zeros(self.size, np.uint8)
 
-        self.fireEvent(cli_register_event("test_matelight", cli_test_matelight))
-
-        self._transmit(self.last_frame)
-
         self.fade_timer = None
         self.init_timer = Timer(5, fade_out_ml()).register(self)
-        self.refresh_timer = Timer(1, refresh_ml(), persist=True).register(self)
+        self.refresh_timer = None
+
+        self.fireEvent(cli_register_event("test_matelight", cli_test_matelight))
+
+        self.cli_test_matelight(None)
 
     def started(self, *args):
         self.log("Starting matelight output on device %s:%i" % (self.host, self.port))
@@ -107,7 +110,8 @@ class Matelight(ConfigurableComponent):
         self.log('Displaying test image')
         import os, cv2 as cv
 
-        path = os.path.abspath("../testscreen.png")
+        path = os.path.abspath(os.path.join(__file__, "../../testscreen.png"))
+        self.log("PATH:", path, lvl=critical)
         test_image = cv.imread(path)
         test_image = cv.cvtColor(test_image, cv.COLOR_BGR2RGB)
         self._transmit(test_image)
@@ -138,8 +142,10 @@ class Matelight(ConfigurableComponent):
     @handler('refresh_ml')
     def refresh_ml(self, event):
         self._transmit(self.last_frame)
+        self.refresh_timer = Timer(1, refresh_ml()).register(self)
 
     def _transmit(self, image):
+        self.log("New transmission request", lvl=verbose)
         if self.output_broken and not self.auto_restart:
             return
 
@@ -159,6 +165,11 @@ class Matelight(ConfigurableComponent):
             self.log("Error during matelight transmission: ", e)
             self.output_broken = True
 
+        if self.refresh_timer is not None:
+            self.refresh_timer.unregister()
+        self.refresh_timer = Timer(1, refresh_ml()).register(self)
+
+    @handler("transmit_ml")
     def transmit_ml(self, event):
         if self.fade_timer is not None:
             self.fade_timer.unregister()
