@@ -47,6 +47,7 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython'
     ],
     packages=find_packages(),
+    package_data={'isomer-matelight': ['../docs/*', '../frontend/*']},
     include_package_data=True,
     long_description="""Isomer - Matelight
 ==================
