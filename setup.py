@@ -63,8 +63,11 @@ This software package is a plugin module for Isomer.
     entry_points="""[isomer.schemata]
       [isomer.components]
       matelight=isomer.matelight:Matelight
+      matelightsim=isomer.matelightsim:MatelightSim
       [isomer.management]
       [isomer.provisions]
     """,
     test_suite="tests.main.main",
 )
+
+
