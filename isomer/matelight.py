@@ -83,8 +83,6 @@ class Matelight(ConfigurableComponent):
         super(Matelight, self).__init__('MATELIGHT', *args, **kwargs)
         self.log("Initializing matelight output")
 
-        self.log('CONFIG:', self.config.__dict__, pretty=True)
-
         self.size = (self.config.size['width'], self.config.size['height'])
         self.gamma = self.config.gamma
 
@@ -111,7 +109,7 @@ class Matelight(ConfigurableComponent):
         import os, cv2 as cv
 
         path = os.path.abspath(os.path.join(__file__, "../../testscreen.png"))
-        self.log("PATH:", path, lvl=critical)
+        self.log("Path of image:", path, lvl=verbose)
         test_image = cv.imread(path)
         test_image = cv.cvtColor(test_image, cv.COLOR_BGR2RGB)
         self._transmit(test_image)
@@ -170,6 +168,7 @@ class Matelight(ConfigurableComponent):
         self.refresh_timer = Timer(1, refresh_ml()).register(self)
 
     @handler("transmit_ml")
+    @handler(transmit_ml)
     def transmit_ml(self, event):
         if self.fade_timer is not None:
             self.fade_timer.unregister()

@@ -30,11 +30,17 @@ from isomer.debugger import cli_register_event
 from .matelight import transmit_ml
 
 
+class unsubscribe(authorized_event):
+    pass
+
+
 class subscribe(authorized_event):
     pass
 
+
 class cli_test_matelight_sim(Event):
     pass
+
 
 class MatelightSim(ConfigurableComponent):
     """Matelight connector with some minimal extra facilities"""
@@ -78,6 +84,8 @@ class MatelightSim(ConfigurableComponent):
             "isomer-web"
         )
 
+
+    @handler("transmit_ml")
     def transmit_ml(self, event):
         self._transmit(event.frame)
 
@@ -95,6 +103,12 @@ class MatelightSim(ConfigurableComponent):
         self.log("Subscription Event:", event.client)
         if event.client.uuid not in self.clients:
             self.clients.append(event.client.uuid)
+
+    @handler(unsubscribe, channel="isomer-web")
+    def unsubscribe(self, event):
+        self.log("Unsubscription Event:", event.client)
+        if event.client.uuid in self.clients:
+            self.clients.remove(event.client.uuid)
 
     @handler("userlogout", channel="isomer-web")
     def userlogout(self, event):
